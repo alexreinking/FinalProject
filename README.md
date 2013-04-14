@@ -1,5 +1,5 @@
-FinalProject
-============
+CPSC 431 Final Project
+======================
 
 My CPSC 431 Final Project at Yale.
 
