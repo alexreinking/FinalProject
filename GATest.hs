@@ -24,8 +24,8 @@ main = do
     mr <- readLn :: IO Double
     putStr "What should be the crossover rate? "
     cr <- readLn :: IO Double
-    let xs = take size $ randoms g :: [Double]
-    let ys = take size $ randoms g :: [Double]
+    let xs = take size $ randomRs (-10.0,10.0) g :: [Double]
+    let ys = take size $ randomRs (-10.0,10.0) g :: [Double]
     putStr "How many generations would you like to run? "
     n <- readLn :: IO Int
     let result = nthGeneration n mr cr (zip xs ys) g
