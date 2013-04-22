@@ -14,7 +14,7 @@ instance Gene (Double,Double) where
 main :: IO ()
 main = do
     g <- newStdGen
-    hSetBuffering stdout NoBuffering
+    hSetBuffering stdout NoBuffering -- Needed when compiling with ghc.
     putStrLn "Going to evolve a gene to optimize multivariate function!"
     putStr "What should be the size of the gene pool? "
     size <- readLn :: IO Int
