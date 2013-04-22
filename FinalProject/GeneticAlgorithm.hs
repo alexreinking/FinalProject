@@ -5,6 +5,8 @@ import Control.Monad.State
 import Data.List
 import Data.Ord
 
+-- I am very happy with the fact that this whole file is pure-functional.
+
 class Gene a where
     mutate    :: StdGen -> a -> a
     crossover :: a -> a -> a
