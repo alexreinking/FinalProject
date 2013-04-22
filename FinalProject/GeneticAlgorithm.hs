@@ -1,11 +1,8 @@
-{-# LANGUAGE ExistentialQuantification, TypeSynonymInstances, FlexibleInstances #-}
 module FinalProject.GeneticAlgorithm where
 import System.Random
 import Control.Monad.State
 import Data.List
 import Data.Ord
-
--- I am very happy with the fact that this whole file is pure-functional.
 
 class Gene a where
     mutate    :: StdGen -> a -> a
@@ -21,8 +18,8 @@ getFitness pool = sortBy (comparing snd) $ zip pool (map fitness pool)
 nthGeneration :: Gene a => Int -> Double -> Double -> [a] -> StdGen -> [a]
 nthGeneration 0 _ _ gp _ = gp
 nthGeneration i mr cr gp g = 
-  let (n,g') = nextGeneration mr cr gp g
-   in nthGeneration (i - 1) mr cr n g'
+    let (n,g') = nextGeneration mr cr gp g
+     in nthGeneration (i - 1) mr cr n g'
 
 nextGeneration :: Gene a => Double -> Double -> [a] -> StdGen -> ([a], StdGen)
 nextGeneration mr cr gp g =
@@ -38,11 +35,11 @@ nextGeneration mr cr gp g =
 selectParents :: Gene a => Int -> [a] -> StdGen -> ([a],StdGen)
 selectParents 0 _ g = ([],g)
 selectParents i pool g = 
-  let nf = sortBy (comparing snd) $ zip pool (normalizeFitness pool)
-      rf =  scanl1 (\(_,f1) (g2,f2) -> (g2,f1+f2)) nf
-      (r,g') = randomR (0.0,1.0) g
-      choice = r*snd (last rf)-snd (head rf)*(1-r)
-   in (rouletteSelect rf choice : fst (selectParents (i-1) pool g'),g')
+    let nf = sortBy (comparing snd) $ zip pool (normalizeFitness pool)
+        rf =  scanl1 (\(_,f1) (g2,f2) -> (g2,f1+f2)) nf
+        (r,g') = randomR (0.0,1.0) g
+        choice = r*snd (last rf)-snd (head rf)*(1-r)
+     in (rouletteSelect rf choice : fst (selectParents (i-1) pool g'),g')
 
 rouletteSelect :: Gene a => [(a,Double)] -> Double -> a
 rouletteSelect [] _ = error "Bad roulette selection"
@@ -54,4 +51,4 @@ normalizeFitness pool =
         lowest = minimum fs
         fsPos = map (\x -> x + abs lowest) fs
         highest = maximum fsPos
-    in map (/ highest) fsPos
+     in map (/ highest) fsPos
