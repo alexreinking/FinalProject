@@ -1,8 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 module GATest where
-import FinalProject.Random
 import FinalProject.GeneticAlgorithm
-import Foreign.Marshal.Unsafe
+import System.Random
 import Data.List
 import System.IO
 
@@ -14,25 +13,9 @@ saveShowable arr = do
 
 -- GA Test 1
 initializePool :: Int -> [(Double,Double)]
-initializePool size = zip (getRandomListRange size 0 10) (getRandomListRange size 0 10)
+initializePool size = take size $ zip (randomRs (0,10) (mkStdGen 42)) (randomRs (0,10) (mkStdGen 33))
 
 instance Gene (Double,Double) where
-    mutate (x,y) = (x+(head $ getRandomListRange 1 (-1) 1),y+(head $ getRandomListRange 1 (-1) 1))
+    mutate g (x,y) = (x+(randomRs (-1.0,1.0) g !! 1), y+(randomRs (-1.0,1.0) g !! 2))
     crossover (x1,y1) (x2,y2) = (x1,y2)
     fitness (x,y) = 1/(1+x*x+y*y)
-
--- GA Test 2
- 
-initializeInteractivePool :: Int -> [Double]
-initializeInteractivePool size = getRandomListRange size 0 10
-
-askForFitness :: Double -> Double
-askForFitness x = unsafeLocalState $
-    do putStrLn ("How much do you like " ++ (show x) ++ "?")
-       val <- (readLn :: IO Double)
-       return (val)
-
-instance Gene Double where
-    mutate x = x + head (getRandomListRange 1 (-1) 1)
-    crossover x y = (x+y)/2
-    fitness x = askForFitness x

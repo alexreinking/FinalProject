@@ -1,11 +1,12 @@
 {-# LANGUAGE ExistentialQuantification, TypeSynonymInstances, FlexibleInstances #-}
 module FinalProject.GeneticAlgorithm where
-import FinalProject.Random
-import Foreign.Marshal.Unsafe
+import System.Random
+import Control.Monad.State
 import Data.List
+import Data.Ord
 
 class Gene a where
-    mutate    :: a -> a
+    mutate    :: StdGen -> a -> a
     crossover :: a -> a -> a
     fitness   :: a -> Double
 
@@ -13,38 +14,37 @@ getBest :: (Gene a) => [a] -> a
 getBest gs = fst $ last $ getFitness gs
     
 getFitness :: (Gene a) => [a] -> [(a,Double)]
-getFitness pool = sortBy sortGF $ zip pool (map fitness pool)
+getFitness pool = sortBy (comparing snd) $ zip pool (map fitness pool)
 
-nthGeneration :: Gene a => Int -> Double -> Double -> [a] -> [a]
-nthGeneration 0 _ _ gp = gp
-nthGeneration i mr cr gp = nthGeneration (i - 1) mr cr (nextGeneration mr cr gp)
+nthGeneration :: Gene a => Int -> Double -> Double -> [a] -> StdGen -> [a]
+nthGeneration 0 _ _ gp _ = gp
+nthGeneration i mr cr gp g = 
+  let (n,g') = nextGeneration mr cr gp g
+   in nthGeneration (i - 1) mr cr n g'
 
-nextGeneration :: Gene a => Double -> Double -> [a] -> [a]
-nextGeneration mr cr gp =
+nextGeneration :: Gene a => Double -> Double -> [a] -> StdGen -> ([a], StdGen)
+nextGeneration mr cr gp g =
     let poolSize = length gp
-        parents = selectParents poolSize gp
-        mates = selectParents poolSize gp
-        chanceCrossover = (\x y -> if (head (getRandomList 1)) < cr then crossover x y else x)
-        offspring = zipWith chanceCrossover parents mates
-        chanceMutate = (\x -> if (head (getRandomList 1)) < mr then mutate x else x)
-     in map chanceMutate offspring
+        (parents,g1) = selectParents poolSize gp g
+        (mates,g2) = selectParents poolSize gp g1
+        (g3,g4) = split g2
+        chanceCrossover r x y = if r < cr then crossover x y else x
+        offspring = zipWith3 chanceCrossover (randomRs (0.0,1.0) g2) parents mates
+        chanceMutate r x = if r < mr then mutate g3 x else x
+     in (zipWith chanceMutate (drop poolSize $ randomRs (0.0,1.0) g3) offspring, g4)
 
-selectParents :: Gene a => Int -> [a] -> [a]
-selectParents i pool =
-    let nf = sortBy sortGF $ zip pool (normalizeFitness pool)
-        rf =  scanl1 (\(g1,f1) (g2,f2) -> (g2,f1+f2)) nf
-        choices = getRandomListRange i (snd $ head rf) (snd $ last rf)
-     in map (rouletteSelect rf) choices
+selectParents :: Gene a => Int -> [a] -> StdGen -> ([a],StdGen)
+selectParents 0 _ g = ([],g)
+selectParents i pool g = 
+  let nf = sortBy (comparing snd) $ zip pool (normalizeFitness pool)
+      rf =  scanl1 (\(_,f1) (g2,f2) -> (g2,f1+f2)) nf
+      (r,g') = randomR (0.0,1.0) g
+      choice = r*snd (last rf)-snd (head rf)*(1-r)
+   in (rouletteSelect rf choice : fst (selectParents (i-1) pool g'),g')
 
 rouletteSelect :: Gene a => [(a,Double)] -> Double -> a
 rouletteSelect [] _ = error "Bad roulette selection"
-rouletteSelect ((g1,f1):gs) r = if (r<f1) then g1 else rouletteSelect gs r
-
-sortGF :: Ord c => (a,c) -> (b,c) -> Ordering
-sortGF (g1,f1) (g2,f2)
-  | f1 < f2 = LT
-  | f1 > f2 = GT
-  | f1 == f2 = EQ
+rouletteSelect ((g1,f1):gs) r = if r<f1 then g1 else rouletteSelect gs r
 
 normalizeFitness :: Gene a => [a] -> [Double]
 normalizeFitness pool = 
@@ -52,4 +52,4 @@ normalizeFitness pool =
         lowest = minimum fs
         fsPos = map (\x -> x + abs lowest) fs
         highest = maximum fsPos
-    in map (\x -> x/highest) fsPos
+    in map (/ highest) fsPos
