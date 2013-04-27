@@ -11,7 +11,7 @@ poolSize = 100
 instance Gene (Double,Double) where
     mutate gen (x,y) = (x+(randomRs (-1.0,1.0) gen !! 1), y+(randomRs (-1.0,1.0) gen !! 2))
     crossover (x1,_) (_,y2) = (x1,y2)
-    fitness (x,y) = 1/(1+x^(2 :: Integer)+y^(2 :: Integer)) -- This supresses a GHc warning. Why does this even throw a warning?
+    fitness (x,y) = 1/(1+x^(2 :: Integer)+y^(2 :: Integer)) -- This supresses a GHC warning. Why does this even throw a warning?
 
 runMUI :: StdGen -> [(Double,Double)] -> IO ()
 runMUI gen pool = runUIEx (600,600) "Genetic Music" $
