@@ -1,6 +1,6 @@
 {-# LANGUAGE Arrows, ScopedTypeVariables, FlexibleInstances #-}
 module Main where
-import FinalProject.GAData
+import FinalProject.GeneticAlgorithm
 import Control.Arrow
 import System.Random
 import Euterpea

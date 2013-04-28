@@ -7,14 +7,15 @@ The idea is to genetically evolve a rules-based system that the user likes. The 
 
 My plan is to implement the following:
 
-1. Genetic Algorithm framework     **revising**
-2. Grammar-based music generation  *in progress*
-3. Rule inference from MIDI sample *in progress*
-4. Genetically-evolved grammars    *in progress*
+1. Genetic Algorithm framework     **complete**
+2. Markov-Chain music generation   *in progress*
+3. Genetically-evolved melodies    *in progress*
 
-Step one has been accomplished by creating a typeclass Gene that implements `mutate`, `crossover`, and `fitness` along with functions to advance generations (lists of Genes).
-Pains have been taken to ensure that the fitness function is called exactly once per gene per generation.
+The genetic algorithm framework is implemented by creating two data constructions:
 
-It now turns out that getting user-supplied fitness is difficult in Haskell. It will require some restucturing of the GA framework.
+1. `GenePool a`, which contains all the basic information about the gene pool, including the list of the genes themselves as well as pool-wide mutation and crossover rates, as well as the functions implementing those operations.
+2. `Gene a`, which is an interesting construction: It contains the data that represents it along with a function that evaluates its fitness. This is to allow the GA to accept user input (in the form of a lambda) as the fitness for a gene.
 
-All of the music operations will be done using the excellent Euterpea library (which was developed here).
+The program will evolve a pool of ten 8-bar melodies (initialized by a Markov Chain, trained on Bach)
+
+All of the music operations will be done using the excellent Euterpea library (which was developed here at Yale).
