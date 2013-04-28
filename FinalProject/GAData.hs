@@ -1,56 +1,79 @@
-module FinalProject.GeneticAlgorithm where
+{-# LANGUAGE FlexibleInstances #-}
+module FinalProject.GAData where
 import System.Random
-import Control.Monad.State
 import Data.List
 import Data.Ord
 
-data Gene a = Gene {
-    self :: a,
-    fitness :: Gene a -> Double,
-    mutate :: StdGen -> Gene a -> Gene a,
+--Utility functions
+
+randomList :: (RandomGen g, Random a) => Int -> (a,a) -> g -> ([a],g)
+randomList i r g = (fst all, last (snd all)) where
+    all = unzip $ take i $ iterate (\(_,g') -> randomR r g') (randomR r g)
+
+--Data declarations
+    
+data GenePool a = GenePool {
+    pool :: [Gene a],
+    mr :: Double,
+    cr :: Double,
+    mutate    :: StdGen -> Gene a -> Gene a,
     crossover :: StdGen -> Gene a -> Gene a -> Gene a
 }
 
-getBest :: [Gene a] -> a
+data Gene a = Gene {
+    self      :: a,
+    _gene_fit :: Gene a -> Double -- this is useful for passing a closure from IO/MUI
+}
+
+--Showable instances
+
+instance (Show a) => Show (Gene a) where
+    show g = "Gene {" ++ show (self g) ++ ", " ++ show (fitness g) ++ "}"
+    
+instance (Show a) => Show (GenePool a) where
+    show gp = "GenePool {" ++ show (pool gp) ++ "}"
+
+-- This makes the syntax more readable
+freezeFitness :: Gene a -> Gene a
+freezeFitness g = g { _gene_fit = const (fitness g) }
+
+fitness :: Gene a -> Double
+fitness g = (_gene_fit g) g
+
+getBest :: GenePool a -> Gene a
 getBest gs = fst $ last $ getFitness gs
     
-getFitness :: [Gene a] -> [(a,Double)]
-getFitness pool = sortBy (comparing snd) $ zip pool (map fitness pool)
+getFitness :: GenePool a -> [(Gene a,Double)]
+getFitness gp = sortBy (comparing snd) $ zip (pool gp) (map fitness (pool gp))
 
-nthGeneration :: Gene a => Int -> Double -> Double -> [a] -> StdGen -> [a]
-nthGeneration 0 _ _ gp _ = gp
-nthGeneration i mr cr gp g = 
-    let (n,g') = nextGeneration mr cr gp g
-     in nthGeneration (i - 1) mr cr n g'
+nthGeneration :: Int -> GenePool a -> StdGen -> GenePool a
+nthGeneration i gp g = last $ fst $ unzip $ take i $
+    iterate (\(lg,gen) -> nextGeneration lg gen) (nextGeneration gp g)
 
-nextGeneration :: Gene a => Double -> Double -> [a] -> StdGen -> ([a], StdGen)
-nextGeneration mr cr gp g =
-    let poolSize = length gp
-        (parents,g1) = selectParents poolSize gp g
-        (mates,g2) = selectParents poolSize gp g1
-        (g3,g4) = split g2
-        chanceCrossover r x y = if r < cr then crossover x y else x
-        offspring = zipWith3 chanceCrossover (randomRs (0.0,1.0) g2) parents mates
-        chanceMutate r x = if r < mr then mutate g3 x else x
-     in (zipWith chanceMutate (drop poolSize $ randomRs (0.0,1.0) g3) offspring, g4)
+nextGeneration :: GenePool a -> StdGen -> (GenePool a, StdGen)
+nextGeneration gp g =
+    let poolSize = length (pool gp)
+        (parents, g1) = selectParents gp g
+        (mates, g2) = selectParents gp g1
+        chanceCrossover r x y = if r < cr gp then (crossover gp) g2 x y else x
+        chanceMutate r x = if r < mr gp then (mutate gp) g2 x else x
+        (rs, g3) = randomList poolSize (0.0,1.0) g2
+        offspring = zipWith3 chanceCrossover rs parents mates
+        (rs', g4) = randomList poolSize (0.0,1.0) g3
+     in (gp { pool = (zipWith chanceMutate rs' offspring) }, g4)
 
-selectParents :: Gene a => Int -> [a] -> StdGen -> ([a],StdGen)
-selectParents 0 _ g = ([],g)
-selectParents i pool g = 
-    let nf = sortBy (comparing snd) $ zip pool (normalizeFitness pool)
-        rf =  scanl1 (\(_,f1) (g2,f2) -> (g2,f1+f2)) nf
-        (r,g') = randomR (0.0,1.0) g
-        choice = r*snd (last rf)-snd (head rf)*(1-r)
-     in (rouletteSelect rf choice : fst (selectParents (i-1) pool g'),g')
+selectParents :: GenePool a -> StdGen -> ([Gene a], StdGen)
+selectParents gp g = 
+    let poolSize = length $ pool gp
+        (rands,g') = randomList poolSize (0.0,1.0) g
+     in (map (rouletteSelect gp) rands, g')
 
-rouletteSelect :: Gene a => [(a,Double)] -> Double -> a
-rouletteSelect [] _ = error "Bad roulette selection"
-rouletteSelect ((g1,f1):gs) r = if r<f1 then g1 else rouletteSelect gs r
+rouletteSelect :: GenePool a -> Double -> Gene a
+rouletteSelect gp r = fst $ head $ filter (\(x,f) -> f >= r) (normalizeFitness gp)
 
-normalizeFitness :: Gene a => [a] -> [Double]
-normalizeFitness pool = 
-    let fs = map fitness pool
-        lowest = minimum fs
-        fsPos = map (\x -> x + abs lowest) fs
-        highest = maximum fsPos
-     in map (/ highest) fsPos
+normalizeFitness :: GenePool a -> [(Gene a, Double)]
+normalizeFitness gp = 
+    let (genes,fs) = unzip $ getFitness gp
+        norm = map (/ (sum fs)) fs
+        newFs = scanl1 (+) norm
+     in zip genes newFs
