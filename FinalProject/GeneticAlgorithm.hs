@@ -7,8 +7,8 @@ import Data.Ord
 --Utility functions
 
 randomList :: (RandomGen g, Random a) => Int -> (a,a) -> g -> ([a],g)
-randomList i r g = (fst all, last (snd all)) where
-    all = unzip $ take i $ iterate (\(_,g') -> randomR r g') (randomR r g)
+randomList i r g = (fst lst, last (snd lst)) where
+    lst = unzip $ take i $ iterate (\(_,g') -> randomR r g') (randomR r g)
 
 --Data declarations
     
@@ -22,7 +22,7 @@ data GenePool a = GenePool {
 
 data Gene a = Gene {
     self      :: a,
-    _gene_fit :: Gene a -> Double -- this is useful for passing a closure from IO/MUI
+    _geneFit :: Gene a -> Double -- this is useful for passing a closure from IO/MUI
 }
 
 --Showable instances
@@ -35,32 +35,32 @@ instance (Show a) => Show (GenePool a) where
 
 -- This makes the syntax more readable
 freezeFitness :: Gene a -> Gene a
-freezeFitness g = g { _gene_fit = const (fitness g) }
+freezeFitness g = g { _geneFit = const (fitness g) }
 
 fitness :: Gene a -> Double
-fitness g = (_gene_fit g) g
+fitness g = _geneFit g g
 
 getBest :: GenePool a -> Gene a
 getBest gs = fst $ last $ getFitness gs
-    
+
 getFitness :: GenePool a -> [(Gene a,Double)]
 getFitness gp = sortBy (comparing snd) $ zip (pool gp) (map fitness (pool gp))
 
 nthGeneration :: Int -> GenePool a -> StdGen -> GenePool a
 nthGeneration i gp g = last $ fst $ unzip $ take i $
-    iterate (\(lg,gen) -> nextGeneration lg gen) (nextGeneration gp g)
+    iterate (uncurry nextGeneration) (nextGeneration gp g)
 
 nextGeneration :: GenePool a -> StdGen -> (GenePool a, StdGen)
 nextGeneration gp g =
     let poolSize = length (pool gp)
         (parents, g1) = selectParents gp g
         (mates, g2) = selectParents gp g1
-        chanceCrossover r x y = if r < cr gp then (crossover gp) g2 x y else x
-        chanceMutate r x = if r < mr gp then (mutate gp) g2 x else x
+        chanceCrossover r x y = if r < cr gp then crossover gp g2 x y else x
+        chanceMutate r x = if r < mr gp then mutate gp g2 x else x
         (rs, g3) = randomList poolSize (0.0,1.0) g2
         offspring = zipWith3 chanceCrossover rs parents mates
         (rs', g4) = randomList poolSize (0.0,1.0) g3
-     in (gp { pool = (zipWith chanceMutate rs' offspring) }, g4)
+     in (gp { pool = zipWith chanceMutate rs' offspring }, g4)
 
 selectParents :: GenePool a -> StdGen -> ([Gene a], StdGen)
 selectParents gp g = 
@@ -69,11 +69,11 @@ selectParents gp g =
      in (map (rouletteSelect gp) rands, g')
 
 rouletteSelect :: GenePool a -> Double -> Gene a
-rouletteSelect gp r = fst $ head $ filter (\(x,f) -> f >= r) (normalizeFitness gp)
+rouletteSelect gp r = fst $ head $ filter ((>= r).snd) (normalizeFitness gp)
 
 normalizeFitness :: GenePool a -> [(Gene a, Double)]
 normalizeFitness gp = 
     let (genes,fs) = unzip $ getFitness gp
-        norm = map (/ (sum fs)) fs
+        norm = map (/ sum fs) fs
         newFs = scanl1 (+) norm
      in zip genes newFs
