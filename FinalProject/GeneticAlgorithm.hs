@@ -1,25 +1,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 module FinalProject.GeneticAlgorithm where
+import FinalProject.Utility
 import System.Random
 import Data.List
 import Data.Ord
 
---Utility functions
-
-randomFromList :: RandomGen g => [a] -> g -> (a,g)
-randomFromList xs gen =
-    let (r,gen') = randomR (0,length xs) gen
-     in (xs !! r, gen')
-
-randomList :: (RandomGen g, Random a) => Int -> (a,a) -> g -> ([a],g)
-randomList i r g = (fst lst, last (snd lst)) where
-    lst = unzip $ take i $ iterate (\(_,g') -> randomR r g') (randomR r g)
-
-randomListOf :: (RandomGen g) => Int -> (g -> (a,g)) -> g -> ([a],g)
-randomListOf i f g = (fst lst, last (snd lst)) where
-    lst = unzip $ take i $ iterate (\(_,g') -> f g') (f g)
-
---Data declarations
+-- Data declarations
     
 data GenePool a = GenePool {
     pool :: [Gene a],
@@ -34,7 +20,7 @@ data Gene a = Gene {
     _geneFit :: Gene a -> Double -- this is useful for passing a closure from IO/MUI
 }
 
---Showable instances
+-- Showable instances
 
 instance (Show a) => Show (Gene a) where
     show g = "Gene {" ++ show (self g) ++ ", " ++ show (fitness g) ++ "}"
@@ -56,21 +42,18 @@ getBest gs = fst $ last $ getFitness gs
 getFitness :: GenePool a -> [(Gene a,Double)]
 getFitness gp = sortBy (comparing snd) $ zip (pool gp) (map fitness (pool gp))
 
-nthGeneration :: Int -> GenePool a -> StdGen -> GenePool a
-nthGeneration i gp g = last $ fst $ unzip $ take i $
-    iterate (uncurry nextGeneration) (nextGeneration gp g)
-
 nextGeneration :: GenePool a -> StdGen -> (GenePool a, StdGen)
 nextGeneration gp g =
     let poolSize = length (pool gp)
         (parents, g1) = selectParents gp g
         (mates, g2) = selectParents gp g1
+        (g3,g4) = split g2
         chanceCrossover r x y = if r < cr gp then crossover gp g2 x y else x
-        chanceMutate r x = if r < mr gp then mutate gp g2 x else x
-        (rs, g3) = randomList poolSize (0.0,1.0) g2
+        chanceMutate r x = if r < mr gp then mutate gp g3 x else x
+        (rs, g5) = randomList poolSize (0.0,1.0) g4
         offspring = zipWith3 chanceCrossover rs parents mates
-        (rs', g4) = randomList poolSize (0.0,1.0) g3
-     in (gp { pool = zipWith chanceMutate rs' offspring }, g4)
+        (rs', g6) = randomList poolSize (0.0,1.0) g5
+     in (gp { pool = zipWith chanceMutate rs' offspring }, g6)
 
 selectParents :: GenePool a -> StdGen -> ([Gene a], StdGen)
 selectParents gp g = 
