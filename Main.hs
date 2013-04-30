@@ -1,30 +1,13 @@
 {-# LANGUAGE Arrows, ScopedTypeVariables, FlexibleInstances #-}
 module Main where
 import FinalProject.GeneticAlgorithm
+import qualified Data.List as L
 import Data.MarkovChain as M
 import Control.Arrow
 import System.Random
-import qualified Data.List as L
 import Euterpea
 
-totalDur :: Dur
-totalDur = 4*wn -- 4 bars
-
-_mutate :: StdGen -> Gene (Music Pitch) -> Gene (Music Pitch)
-_mutate gen gene = gene { self = transpose (fst $ randomR (-1,1) gen) (self gene) }
-
-_crossover :: StdGen -> Gene (Music Pitch) -> Gene (Music Pitch) -> Gene (Music Pitch)
-_crossover gen g1 g2 =
-    let pivots = [0.0,1/16..(min (fromRational $ dur $ self g1) (fromRational $ dur $ self g2))]
-        pivot  = pivots !! fst (randomR (0,length pivots - 1) gen)
-        part1 = takeM pivot (self g1)
-        part2 = dropM pivot (self g2)
-     in g1 { self = part1 :+: part2, _geneFit = const 0.0 }
-
 -- Sonata in C Major (Mozart)
-
-getNeighbors :: Music Pitch -> [Music Pitch] -> [Music Pitch]
-getNeighbors mp mps = L.nub $ map ((mps !!).(+1).snd) $ filter ((mp ==).fst) $ zip mps [0..length mps-2]
 
 sonataInC :: [Music Pitch]
 sonataInC = [c 5 wn, e 5 hn, g 5 hn, b 4 dhn, c 5 en, d 5 en, c 5 hn, rest hn, 
@@ -68,20 +51,42 @@ sonataNo7 = [g 4 qn, g 4 hn, e 4 qn, c 5 qn, c 5 hn, b 4 qn, d 5 qn, d 5 dqn, e 
              e 5 qn, g 5 qn, g 5 dhn, gs 5 qn, a 5 dqn, b 5 en, d 6 en, c 6 en, b 5 en, a 5 en,
              g 5 hn, fs 5 en, g 5 en, e 5 en, fs 5 en, g 5 dhn, g 5 qn]
 
--- initialize from t2
+-- Global Parameters
+
+sample :: [Music Pitch]
+sample = concat [sonataInC, sonatina, sonataNo7]
+
+-- Genetic Algorithm
+
+_mutate :: StdGen -> Gene [Music Pitch] -> Gene [Music Pitch]
+_mutate gen gene =
+    let neighbors = map (\x -> x : getNeighbors x sample) (self gene)
+        (indices,_) = randomList (length neighbors) (0,maximum (map length neighbors)) gen
+     in gene { self = zipWith (\x y -> y !! (x `mod` length y)) indices neighbors }
+
+getNeighbors :: Music Pitch -> [Music Pitch] -> [Music Pitch]
+getNeighbors mp mps = L.nub $ map ((mps !!).(+1).snd) $ filter ((mp ==).fst) $ zip mps [0..length mps-2]
+
+_crossover :: StdGen -> Gene [Music Pitch] -> Gene [Music Pitch] -> Gene [Music Pitch]
+_crossover gen g1 g2 =
+    let pivot  = fst (randomR (0,min (length (self g1)-1) (length (self g2)-1)) gen)
+        part1 = take pivot (self g1)
+        part2 = drop pivot (self g2)
+     in g1 { self = part1 ++ part2, _geneFit = const 0.0 }
      
-initializePool :: Int -> StdGen -> GenePool (Music Pitch)
+initializePool :: Int -> StdGen -> GenePool [Music Pitch]
 initializePool size gen = 
     let gens = take size (iterate (fst . split) gen)
-        sample = [sonataNo7, sonatina, sonataInC]
         starts = map (fst . randomR (0, 2)) gens
-        genes = zipWith (M.runMulti 1 sample) starts gens
-     in GenePool { pool = map (\x -> Gene { self = takeM totalDur (line (concat x)), _geneFit = const 1.0}) genes,
+        genes = zipWith (M.run 1 sample) starts gens
+     in GenePool { pool = map (\x -> Gene { self = take 20 x, _geneFit = const 0.0}) genes,
                    mr = 0.2, cr = 0.8,
                    mutate = _mutate,
                    crossover = _crossover }
 
-runMUI :: StdGen -> GenePool (Music Pitch) -> IO ()
+-- MUI
+
+runMUI :: StdGen -> GenePool [Music Pitch] -> IO ()
 runMUI gen genePool = runUIEx (600,800) "Genetic Music" $
     proc _ -> do
         (_mr, _cr) <- rateSelectors -< ()
@@ -92,6 +97,7 @@ runMUI gen genePool = runUIEx (600,800) "Genetic Music" $
                 gp'  = fmap (\_ -> fst $ nextGeneration newPool gen) btn
                 gen' = fmap (\_ -> snd $ nextGeneration newPool gen) btn
             gp  <- hold genePool -< gp'
+            best <- hold Gene { self = [rest 0], _geneFit = const 0.0 } -< fmap getBest gp'
             g1  <- setFitness -< head (pool gp)
             g2  <- setFitness -< (pool gp !! 1)
             g3  <- setFitness -< (pool gp !! 2)
@@ -103,10 +109,10 @@ runMUI gen genePool = runUIEx (600,800) "Genetic Music" $
             g9  <- setFitness -< (pool gp !! 8)
             g10 <- setFitness -< (pool gp !! 9)
             gen <- hold gen   -< gen'
-        title "Last Best" geneDisplay -< getBest newPool
+        title "Last Best" geneDisplay -< best
 
-performGene :: Gene (Music Pitch) -> Music1
-performGene gene = toMusic1 $ tempo (4/3) (self gene)
+performGene :: Gene [Music Pitch] -> Music1
+performGene gene = toMusic1 $ tempo (4/3) (line $ self gene)
 
 rateSelectors :: (RealFrac a, Show a) => UISF () (a,a)
 rateSelectors = leftRight $ proc _ -> do
@@ -114,20 +120,22 @@ rateSelectors = leftRight $ proc _ -> do
     _cr <- title "Crossover Rate" $ withDisplay $ hSlider (0.0,1.0) 0.8 -< ()
     returnA -< (_mr, _cr)
 
-setFitness :: UISF (Gene (Music Pitch)) (Gene (Music Pitch))
+setFitness :: UISF (Gene [Music Pitch]) (Gene [Music Pitch])
 setFitness = leftRight $ proc gene -> do
     fit <- title "Fitness" $ hSlider (0.0,10.0) 5.0 -< ()
     playBtn <- title "Actions" $ edge <<< button "Play" -< ()
     midiOutB -< (0, fmap (const $ musicToMsgs False [] (performGene gene)) playBtn)
     returnA -< gene { _geneFit = const fit }
 
-geneDisplay :: UISF (Gene (Music Pitch)) ()
+geneDisplay :: UISF (Gene [Music Pitch]) ()
 geneDisplay = leftRight $ proc gene -> do
     title "Gene" display -< gene
     title "Fitness" display -< fitness gene
-    playBtn <- edge <<< button "Play" -< ()
+    playBtn <- title "Actions" $ edge <<< button "Play" -< ()
     midiOutB -< (0, fmap (const $ musicToMsgs False [] (performGene gene)) playBtn)
     returnA -< ()
+
+-- Main
 
 main :: IO ()
 main = do

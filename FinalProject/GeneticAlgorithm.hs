@@ -15,6 +15,10 @@ randomList :: (RandomGen g, Random a) => Int -> (a,a) -> g -> ([a],g)
 randomList i r g = (fst lst, last (snd lst)) where
     lst = unzip $ take i $ iterate (\(_,g') -> randomR r g') (randomR r g)
 
+randomListOf :: (RandomGen g) => Int -> (g -> (a,g)) -> g -> ([a],g)
+randomListOf i f g = (fst lst, last (snd lst)) where
+    lst = unzip $ take i $ iterate (\(_,g') -> f g') (f g)
+
 --Data declarations
     
 data GenePool a = GenePool {
@@ -39,11 +43,12 @@ instance (Show a) => Show (GenePool a) where
     show gp = "GenePool {" ++ show (pool gp) ++ "}"
 
 -- This makes the syntax more readable
-freezeFitness :: Gene a -> Gene a
-freezeFitness g = g { _geneFit = const (fitness g) }
 
 fitness :: Gene a -> Double
 fitness g = _geneFit g g
+
+freezeFitness :: Gene a -> Gene a
+freezeFitness g = g { _geneFit = const (fitness g) }
 
 getBest :: GenePool a -> Gene a
 getBest gs = fst $ last $ getFitness gs
