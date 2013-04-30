@@ -1,11 +1,10 @@
 {-# LANGUAGE Arrows, ScopedTypeVariables, FlexibleInstances #-}
 module Main where
 import FinalProject.GeneticAlgorithm
-import Euterpea.Examples.RandomMusic
-import Euterpea.Examples.LSystems
 import Data.MarkovChain as M
 import Control.Arrow
 import System.Random
+import qualified Data.List as L
 import Euterpea
 
 totalDur :: Dur
@@ -23,6 +22,9 @@ _crossover gen g1 g2 =
      in g1 { self = part1 :+: part2, _geneFit = const 0.0 }
 
 -- Sonata in C Major (Mozart)
+
+getNeighbors :: Music Pitch -> [Music Pitch] -> [Music Pitch]
+getNeighbors mp mps = L.nub $ map ((mps !!).(+1).snd) $ filter ((mp ==).fst) $ zip mps [0..length mps-2]
 
 sonataInC :: [Music Pitch]
 sonataInC = [c 5 wn, e 5 hn, g 5 hn, b 4 dhn, c 5 en, d 5 en, c 5 hn, rest hn, 
@@ -71,14 +73,16 @@ sonataNo7 = [g 4 qn, g 4 hn, e 4 qn, c 5 qn, c 5 hn, b 4 qn, d 5 qn, d 5 dqn, e 
 initializePool :: Int -> StdGen -> GenePool (Music Pitch)
 initializePool size gen = 
     let gens = take size (iterate (fst . split) gen)
-        genes = map (M.runMulti 1 [sonataNo7,sonatina,sonataInC] 0) gens
+        sample = [sonataNo7, sonatina, sonataInC]
+        starts = map (fst . randomR (0, 2)) gens
+        genes = zipWith (M.runMulti 1 sample) starts gens
      in GenePool { pool = map (\x -> Gene { self = takeM totalDur (line (concat x)), _geneFit = const 1.0}) genes,
                    mr = 0.2, cr = 0.8,
                    mutate = _mutate,
                    crossover = _crossover }
 
 runMUI :: StdGen -> GenePool (Music Pitch) -> IO ()
-runMUI gen genePool = runUIEx (600,700) "Genetic Music" $
+runMUI gen genePool = runUIEx (600,800) "Genetic Music" $
     proc _ -> do
         (_mr, _cr) <- rateSelectors -< ()
         btn <- edge <<< button "Advance Generation" -< ()
@@ -88,7 +92,7 @@ runMUI gen genePool = runUIEx (600,700) "Genetic Music" $
                 gp'  = fmap (\_ -> fst $ nextGeneration newPool gen) btn
                 gen' = fmap (\_ -> snd $ nextGeneration newPool gen) btn
             gp  <- hold genePool -< gp'
-            g1  <- setFitness -< (pool gp !! 0)
+            g1  <- setFitness -< head (pool gp)
             g2  <- setFitness -< (pool gp !! 1)
             g3  <- setFitness -< (pool gp !! 2)
             g4  <- setFitness -< (pool gp !! 3)
