@@ -12,7 +12,7 @@ import Euterpea
 -- Global Parameters
 
 sample :: [Music Pitch]
-sample = concat [sonataInC, sonatina, sonataNo7]
+sample = concat [sonatina, sonataNo7, sonataInC]
 
 -- Genetic Algorithm
 
@@ -35,9 +35,9 @@ _crossover gen g1 g2 =
 initializePool :: Int -> StdGen -> GenePool [Music Pitch]
 initializePool size gen = 
     let gens = take size (iterate (fst . split) gen)
-        starts = map (fst . randomR (0, 2)) gens
-        genes = zipWith (M.run 1 sample) starts gens
-     in GenePool { pool = map (\x -> Gene { self = take 20 x, _geneFit = const 0.0}) genes,
+        starts = map (fst . randomR (0, 5)) gens
+        genes = zipWith (M.run 2 sample) starts gens
+     in GenePool { pool = map (\x -> Gene { self = take 40 x, _geneFit = const 0.0}) genes,
                    mr = 0.2, cr = 0.8,
                    mutate = _mutate,
                    crossover = _crossover }
@@ -98,7 +98,7 @@ geneDisplay = leftRight $ proc gene -> do
 -- Widget Helpers
 
 performGene :: Gene [Music Pitch] -> Music1
-performGene gene = toMusic1 $ tempo (4/3) (line $ self gene)
+performGene gene = toMusic1 $ instrument Xylophone $ tempo 2 (takeM 4 $ line $ self gene)
 
 -- Main
 
