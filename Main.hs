@@ -7,7 +7,6 @@ import qualified Data.List as L
 import Data.MarkovChain as M
 import Control.Arrow
 import System.Random
-import Data.Maybe
 import Euterpea
 
 -- Genetic Algorithm
@@ -93,16 +92,26 @@ geneDisplay = leftRight $ proc gene -> do
     title "Gene" display -< gene
     title "Fitness" display -< fitness gene
     btn <- title "Actions" playSave -< ()
-    let actions = [(0,musicToMsgs False [] (performGene gene))]
-    midiOutB -< fmap (actions !!) btn
+    --playBtn <- title "Actions" $ edge <<< button "Play" -< ()
+    let playAction x = case x of Nothing -> Nothing
+                                 Just "Play" -> Just (musicToMsgs False [] (performGene gene))
+                                 _ -> Nothing
+    let saveAction x = case x of Nothing -> Nothing
+                                 Just "Save" -> Just (takeM 4 $ line $ self gene)
+                                 _ -> Nothing
+    midiOutB -< (0, playAction btn)
+    basicIOWidget1 test -< saveAction btn
     returnA -< ()
 
-playSave :: UISF () (SEvent Int)
+basicIOWidget1 :: (a -> IO ()) -> UISF (SEvent a) () 
+basicIOWidget1 = (>>> arr (const ())) . uisfSinkE
+
+playSave :: UISF () (SEvent String)
 playSave = leftRight $ proc _ -> do
     playBtn <- edge <<< button "Play" -< ()
-    saveBtn <- edge <<< button "Save to out.midi" -< ()
-    returnA -< case playBtn of Just _ -> Just 0
-                               Nothing -> case saveBtn of Just _ -> Just 1
+    saveBtn <- edge <<< button "Save to test.mid" -< ()
+    returnA -< case playBtn of Just _ -> Just "Play"
+                               Nothing -> case saveBtn of Just _ -> Just "Save"
                                                           Nothing -> Nothing
 
 -- Widget Helpers
