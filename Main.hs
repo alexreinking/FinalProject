@@ -9,11 +9,6 @@ import Control.Arrow
 import System.Random
 import Euterpea
 
--- Global Parameters
-
-sample :: [Music Pitch]
-sample = concat [sonatina, sonataNo7, sonataInC]
-
 -- Genetic Algorithm
 
 _mutate :: StdGen -> Gene [Music Pitch] -> Gene [Music Pitch]
@@ -45,43 +40,48 @@ initializePool size gen =
 -- MUI
 
 runMUI :: StdGen -> GenePool [Music Pitch] -> IO ()
-runMUI gen genePool = runUIEx (600,800) "Genetic Music" $
+runMUI gen genePool = runUIEx (930,550) "Genetic Music" $
     proc _ -> do
         (_mr, _cr) <- rateSelectors -< ()
         btn <- edge <<< button "Advance Generation" -< ()
         rec let newPool =
                     case btn of Nothing -> gp
-                                Just _ -> gp {pool = [g1,g2,g3,g4,g5,g6,g7,g8,g9,g10],
-                                              mr = _mr,
-                                              cr = _cr }
+                                Just _ -> gp {pool = part1 ++ part2,
+                                              mr = _mr, cr = _cr }
                 gp'  = fmap (\_ -> fst $ nextGeneration newPool gen) btn
                 gen' = fmap (\_ -> snd $ nextGeneration newPool gen) btn
                 sup' = fmap (\_ -> getBest newPool) btn
-            sup <- hold Gene { self = [rest 0], _geneFit = const 0.0 } -< sup'
-            gp  <- hold genePool -< gp'
-            g1  <- setFitness -< head (pool gp)
-            g2  <- setFitness -< (pool gp !! 1)
-            g3  <- setFitness -< (pool gp !! 2)
-            g4  <- setFitness -< (pool gp !! 3)
-            g5  <- setFitness -< (pool gp !! 4)
-            g6  <- setFitness -< (pool gp !! 5)
-            g7  <- setFitness -< (pool gp !! 6)
-            g8  <- setFitness -< (pool gp !! 7)
-            g9  <- setFitness -< (pool gp !! 8)
-            g10 <- setFitness -< (pool gp !! 9)
-            gen <- hold gen   -< gen'
+                gener' = fmap (\_ -> gener+ (1 :: Integer)) btn
+            sup   <- hold Gene { self = [rest 0], _geneFit = const 0.0 } -< sup'
+            gp    <- hold genePool -< gp'
+            part1 <- get5Genes     -< take 5 (pool gp)
+            part2 <- get5Genes     -< drop 5 (pool gp)
+            gen   <- hold gen      -< gen'
+            gener <- hold 0        -< gener'
         title "Last Best" geneDisplay -< sup
+        title "Generations" display   -< gener
 
 -- Custom Widgets
 
+-- I don't know of a better way to do this. But it works.
+-- I'm open to suggestions!
+get5Genes :: UISF [Gene [Music Pitch]] [Gene [Music Pitch]]
+get5Genes = leftRight $ proc genes -> do
+    g0 <- title "Gene" setFitness -< head genes
+    g1 <- title "Gene" setFitness -< genes !! 1
+    g2 <- title "Gene" setFitness -< genes !! 2
+    g3 <- title "Gene" setFitness -< genes !! 3
+    g4 <- title "Gene" setFitness -< genes !! 4
+    returnA -< [g0,g1,g2,g3,g4]
+
 rateSelectors :: (RealFrac a, Show a) => UISF () (a,a)
 rateSelectors = leftRight $ proc _ -> do
-    _mr <- title "Mutation Rate"  $ withDisplay $ hSlider (0.0,1.0) 0.2 -< ()
-    _cr <- title "Crossover Rate" $ withDisplay $ hSlider (0.0,1.0) 0.8 -< ()
+    _mr <- title "Mutation Rate"  $ withDisplay $ hSlider (0.0,1.0) 0.3 -< ()
+    _cr <- title "Crossover Rate" $ withDisplay $ hSlider (0.0,1.0) 0.7 -< ()
     returnA -< (_mr, _cr)
 
 setFitness :: UISF (Gene [Music Pitch]) (Gene [Music Pitch])
-setFitness = leftRight $ proc gene -> do
+setFitness = proc gene -> do
     fit <- title "Fitness" $ hSlider (0.0,10.0) 5.0 -< ()
     playBtn <- title "Actions" $ edge <<< button "Play" -< ()
     midiOutB -< (0, fmap (const $ musicToMsgs False [] (performGene gene)) playBtn)

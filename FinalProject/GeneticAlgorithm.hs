@@ -33,6 +33,7 @@ instance (Show a) => Show (GenePool a) where
 fitness :: Gene a -> Double
 fitness g = _geneFit g g
 
+-- This function HAD been used, but I worked around it. I'm leaving it in because it could be useful in other contexts.
 freezeFitness :: Gene a -> Gene a
 freezeFitness g = g { _geneFit = const (fitness g) }
 
@@ -41,6 +42,12 @@ getBest gs = fst $ last $ getFitness gs
 
 getFitness :: GenePool a -> [(Gene a,Double)]
 getFitness gp = sortBy (comparing snd) $ zip (pool gp) (map fitness (pool gp))
+
+-- This function is never used, but was easy to write and would be useful for any
+-- fully-automated genetic algorithm
+nthGeneration :: Int -> GenePool a -> StdGen -> GenePool a
+nthGeneration i gp g = last $ fst $ unzip $ take i $
+    iterate (uncurry nextGeneration) (nextGeneration gp g)
 
 nextGeneration :: GenePool a -> StdGen -> (GenePool a, StdGen)
 nextGeneration gp g =

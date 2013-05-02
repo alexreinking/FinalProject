@@ -82,3 +82,8 @@ sonataNo7 = [g 4 qn, g 4 hn, e 4 qn, c 5 qn, c 5 hn, b 4 qn, d 5 qn, d 5 dqn, e 
              e 4 qn, c 5 qn, c 5 hn, b 4 qn, d 5 qn, d 5 dqn, e 5 en, f 5 qn, f 5 qn, f 5 hn,
              e 5 qn, g 5 qn, g 5 dhn, gs 5 qn, a 5 dqn, b 5 en, d 6 en, c 6 en, b 5 en, a 5 en,
              g 5 hn, fs 5 en, g 5 en, e 5 en, fs 5 en, g 5 dhn, g 5 qn]
+
+-- The concatedated sample. Ready for use by Data.MarkovChain.
+
+sample :: [Music Pitch]
+sample = concat [sonatina, sonataNo7, sonataInC]
