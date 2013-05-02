@@ -126,6 +126,13 @@ Thumbs.db
 # Folder config file
 Desktop.ini
 
+#############
+## Haskell
+#############
+
+*.hi
+*.o
+
 
 #############
 ## Python
