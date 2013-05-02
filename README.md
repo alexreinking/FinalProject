@@ -103,3 +103,13 @@ There are a few functions that I wrote that I ultimately ended up not using. How
 
 The latest version and all of my progress will be permanently available on https://www.github.com/alexreinking/FinalProject
 
+Going Forward
+-------------
+
+There's a lot of neat stuff I could have done if I'd had more time. Here are a few of my ideas:
+
+1) Simultaneously train a neural net to rate the fitnesses for you and then let the GA run automatically
+2) Try to derive rules for a grammar from the training data.
+  a) Add more training data. More data is always better for something like this.
+3) Try different gene representations (ie. use intervals instead of notes)
+4) Try different ways of initializing the pool. (If we start with something already-composed, we can evolve variations)
