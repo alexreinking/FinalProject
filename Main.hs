@@ -7,6 +7,7 @@ import qualified Data.List as L
 import Data.MarkovChain as M
 import Control.Arrow
 import System.Random
+import Data.Maybe
 import Euterpea
 
 -- Genetic Algorithm
@@ -91,9 +92,18 @@ geneDisplay :: UISF (Gene [Music Pitch]) ()
 geneDisplay = leftRight $ proc gene -> do
     title "Gene" display -< gene
     title "Fitness" display -< fitness gene
-    playBtn <- title "Actions" $ edge <<< button "Play" -< ()
-    midiOutB -< (0, fmap (const $ musicToMsgs False [] (performGene gene)) playBtn)
+    btn <- title "Actions" playSave -< ()
+    let actions = [(0,musicToMsgs False [] (performGene gene))]
+    midiOutB -< fmap (actions !!) btn
     returnA -< ()
+
+playSave :: UISF () (SEvent Int)
+playSave = leftRight $ proc _ -> do
+    playBtn <- edge <<< button "Play" -< ()
+    saveBtn <- edge <<< button "Save to out.midi" -< ()
+    returnA -< case playBtn of Just _ -> Just 0
+                               Nothing -> case saveBtn of Just _ -> Just 1
+                                                          Nothing -> Nothing
 
 -- Widget Helpers
 
