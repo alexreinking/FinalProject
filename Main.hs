@@ -103,6 +103,8 @@ geneDisplay = leftRight $ proc gene -> do
     basicIOWidget1 test -< saveAction btn
     returnA -< ()
 
+-- Thanks, Donya!
+
 basicIOWidget1 :: (a -> IO ()) -> UISF (SEvent a) () 
 basicIOWidget1 = (>>> arr (const ())) . uisfSinkE
 
