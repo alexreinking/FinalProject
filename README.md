@@ -20,6 +20,18 @@ The pieces were chosen for both their quality and their key: all three are in C 
 
 The interactive step is conducted by setting sliders that are translated into fitness values for a genetic algorithm on a fixed-size gene pool of size ten. The pool is initialized via a Markov Chain of second-order connectivity.
 
+
+How-To
+------
+Load the program in GHCi or compile Main.hs with GHC and run main.
+
+Listen to each sample melody, set the fitness and then click on advance generation. Repeat until you have a result you like.
+I can usually get something unique and halfway decent after about 8 generations. I've found myself humming a few examples, actually.
+
+The option exists to tweak the mutation rate and crossover rate. The changes will take effect as you press the "Advance Generation" button.
+
+Hope you have a little fun with this! :)
+
 Code Overview
 -------------
 
